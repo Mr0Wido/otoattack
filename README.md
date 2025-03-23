@@ -29,9 +29,9 @@
 
 ## About
 
-Otoattack is a Python-based tool for __Vulnerability Scan__. I wrote much more detail for detecting bugs in my blog. You can read it [here](https://mr0wido.github.io/otoattack). 
+Otoattack is a Python-based tool for __Vulnerability Scan__. 
 
-Otoattack provides a variety of vuln scan, including these;
+Otoattack provides a variety of vuln scans, including these;
 
 - XSS
 - SQLi
@@ -74,7 +74,7 @@ $ ./install.sh
 
 
 ## Options
-There are three option and they required.
+There are three options and they are required.
 **Flags** |    | Description
 --- | ---  | ---
 -l | --list | Path to the list of targets
