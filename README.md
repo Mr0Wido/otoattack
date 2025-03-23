@@ -1,4 +1,4 @@
-![otoattack](tools/src/img/logo2.png)
+![otoattack](tools/src/img/logo.png)
 
 <p align="center">
   <b>Otoattack - Vulnerability Scanner</b>
