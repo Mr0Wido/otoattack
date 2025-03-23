@@ -1,11 +1,64 @@
-/config.txt
-/cors_results.txt
-/debug.py
-/gf-results
-/gf-results.html
-/param_temp.txt
-/scan-results
-/scan-results.html
-/ssti_found.txt
-/ssti_found2.txt
-/testphp.vulnweb.com_urls.txt
+
+# Derleme ve paketleme dosyaları
+build/
+dist/
+*.egg-info/
+develop-eggs/
+.eggs/
+MANIFEST
+
+# Önbellek ve derlenmiş Python dosyaları
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sanal ortamlar
+.env
+.venv
+env/
+venv/
+
+# Günlük ve geçici dosyalar
+*.log
+*.pid
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+
+# PyInstaller / PyBuilder / Sphinx
+*.spec
+.pybuilder/
+target/
+docs/_build/
+
+# Test ve kod analizi dosyaları
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Jupyter ve IPython
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# Veritabanı ve Django/Flask
+db.sqlite3
+db.sqlite3-journal
+instance/
+.webassets-cache
+
+# PyCharm ve diğer IDE dosyaları
+.idea/
+*.iml
+
+# Projeye özel eklemeler
+/otoattack.egg-info
