@@ -1,13 +1,10 @@
 requests
 argparse
-json
-os
-sys
 colorama
 urllib
 asyncio
 subprocess
+requests
+colorama
 beautifulsoup4
-dnspython
-Click
-tldextract
+aiohttp==3.11.11
