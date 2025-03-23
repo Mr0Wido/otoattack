@@ -10,7 +10,6 @@ GO_TOOLS=(
     "github.com/tomnomnom/assetfinder"
     "github.com/projectdiscovery/httpx/cmd/httpx"
     "github.com/tomnomnom/gf"
-    "github.com/hahwul/dalfox/v2"
     "github.com/tomnomnom/waybackurls"
     "github.com/mlcsec/headi"
     "github.com/tomnomnom/qsreplace"
@@ -24,6 +23,9 @@ GO_TOOLS=(
 for tool in "${GO_TOOLS[@]}"; do
     go install -v "$tool@latest" && sudo cp ~/go/bin/$(basename "$tool") /usr/bin/$(basename "$tool")
 done
+
+go install -v github.com/hahwul/dalfox/v2@latest
+sudo cp ~/go/bin/dalfox /usr/bin/dalfox
 
 echo " [*] Cloning and installing Git-based tools..."
 git clone https://github.com/1ndianl33t/Gf-Patterns
