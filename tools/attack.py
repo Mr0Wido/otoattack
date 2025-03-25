@@ -185,7 +185,7 @@ def run_detect_tools(target_list, domain):
     try:
         ssti_results = os.path.join(directory, "ssti_results.txt")
         print(colorama.Fore.GREEN + f" [*] Running SSTI scan for SSTI...")
-        ssti_command = f"sstiscan -ul {target_list} -pl tools/src/ssti_payloads.txt"
+        ssti_command = f"sstiscan -ul {target_list}"
         ssti_out = subprocess.Popen(ssti_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         output = ssti_out.communicate()
 
