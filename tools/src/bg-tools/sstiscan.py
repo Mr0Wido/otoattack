@@ -44,6 +44,8 @@ def inject_ssti(url):
                 payload_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}?{new_query}"
                 print(f"{payload_url}")
                 try:
+                    with open ("ssti_found.txt", "w") as f:
+                        pass
                     response = requests.get(payload_url, headers=headers, timeout=10)
                     if payload["expected_output"] in response.text:
                         print(f"[+] Potential SSTI detected: {payload['payload']} : {payload_url}")
