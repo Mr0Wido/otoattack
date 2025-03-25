@@ -10,6 +10,7 @@ setup(
         "colorama",
         "beautifulsoup4",
         "aiohttp==3.11.11", 
+        "xsrfprobe",
     ],
     author='Mr0Wido',
     author_email='furkn.dniz@protonmail.com',

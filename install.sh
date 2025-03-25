@@ -21,7 +21,8 @@ GO_TOOLS=(
 )
 
 for tool in "${GO_TOOLS[@]}"; do
-    go install -v "$tool@latest" && sudo cp ~/go/bin/$(basename "$tool") /usr/bin/$(basename "$tool")
+    tool_name=$(echo "$tool" | awk -F/ '{print $NF}')
+    go install -v "$tool@latest" && sudo cp ~/go/bin/$tool_name /usr/bin/$tool_name
 done
 
 go install -v github.com/hahwul/dalfox/v2@latest
@@ -29,27 +30,37 @@ sudo cp ~/go/bin/dalfox /usr/bin/dalfox
 
 echo " [*] Cloning and installing Git-based tools..."
 git clone https://github.com/1ndianl33t/Gf-Patterns
-sudo  mkdir ~/.gf
-sudo  mv ~/Gf-Patterns/*.json ~/.gf
-if [[ $SHELL == *"bash"]]; then 
-    sudo wget https://raw.githubusercontent.com/tomnomnom/gf/refs/heads/master/gf-completion.bash
-    sudo mv gf-completion.bash ~/.gf/gf-completion.bash
-    sudo echo 'source ~/.gf/gf-completion.bash' >> ~/.bashrc
-elif [[ $SHELL == *"zsh"]]; then
-    sudo wget https://raw.githubusercontent.com/tomnomnom/gf/refs/heads/master/gf-completion.zsh
-    sudo mv gf-completion.zsh ~/.gf/gf-completion.zsh
-    sudo echo 'source ~/.gf/gf-completion.zsh' >> ~/.zshrc
-elif [[ $SHELL == *"fish"]]; then
-    sudo wget https://raw.githubusercontent.com/tomnomnom/gf/refs/heads/master/gf-completion.zsh
-    sudo mv gf-completion.zsh ~/.gf/gf-completion.fish
-    sudo echo 'source ~/.gf/gf-completion.fish' >> ~/.config/fish/config.fish
+if [ -d "Gf-Patterns" ]; then
+    mkdir -p ~/.gf
+    mv Gf-Patterns/*.json ~/.gf/
+else
+    echo " [!] Gf-Patterns klasörü bulunamadı!"
 fi
 
+if [[ $SHELL == *"bash" ]]; then
+    wget https://raw.githubusercontent.com/tomnomnom/gf/refs/heads/master/gf-completion.bash
+    mv gf-completion.bash ~/.gf/gf-completion.bash
+    echo 'source ~/.gf/gf-completion.bash' | sudo tee -a ~/.bashrc
+elif [[ $SHELL == *"zsh" ]]; then
+    wget https://raw.githubusercontent.com/tomnomnom/gf/refs/heads/master/gf-completion.zsh
+    mv gf-completion.zsh ~/.gf/gf-completion.zsh
+    echo 'source ~/.gf/gf-completion.zsh' | sudo tee -a ~/.zshrc
+elif [[ $SHELL == *"fish" ]]; then
+    wget https://raw.githubusercontent.com/tomnomnom/gf/refs/heads/master/gf-completion.zsh
+    mv gf-completion.zsh ~/.gf/gf-completion.fish
+    echo 'source ~/.gf/gf-completion.fish' | sudo tee -a ~/.config/fish/config.fish
+fi
+
+
 git clone https://github.com/defparam/smuggler.git
-sudo mv smuggler /opt/smuggler
-sudo chmod +x /opt/smuggler/smuggler.py
-sudo ln -sf /opt/smuggler/smuggler.py /usr/local/bin/smuggler
-rm -rf smuggler
+if [ -d "smuggler" ]; then
+    sudo mv smuggler /opt/smuggler
+    sudo chmod +x /opt/smuggler/smuggler.py
+    sudo ln -sf /opt/smuggler/smuggler.py /usr/local/bin/smuggler
+    rm -rf smuggler
+else
+    echo " [!] Smuggler yüklenemedi!"
+fi
 
 echo " [*] Installing Findomain..."
 curl -LO https://github.com/findomain/findomain/releases/latest/download/findomain-linux.zip
@@ -58,22 +69,16 @@ chmod +x findomain
 sudo mv findomain /usr/bin/findomain
 rm findomain-linux.zip
 
-sudo cp /tools/src/ex-tools/cors.py /usr/bin/cors
-sudo chmod +x /usr/bin/cors
-sudo cp /tools/src/ex-tools/corscan.py /usr/bin/corscan
-sudo chmod +x /usr/bin/corscan
-sudo cp /tools/src/ex-tools/csrfscan.py /usr/bin/csrfscan
-sudo chmod +x /usr/bin/csrfscan
-sudo cp /tools/src/ex-tools/lfiscan.sh /usr/bin/lfiscan
-sudo chmod +x /usr/bin/lfiscan
-sudo cp /tools/src/ex-tools/params.py /usr/bin/params
-sudo chmod +x /usr/bin/params
-sudo cp /tools/src/ex-tools/redirectest.py /usr/bin/redirectest
-sudo chmod +x /usr/bin/redirectest
-sudo cp /tools/src/ex-tools/ssrftest.py /usr/bin/ssrftest
-sudo chmod +x /usr/bin/ssrftest
-sudo cp /tools/src/ex-tools/sstiscan.py /usr/bin/sstiscan
-sudo chmod +x /usr/bin/sstiscan
+if [ -d "/tools/src/ex-tools/" ]; then
+    for script in cors.py corscan.py csrfscan.py lfiscan.sh params.py redirectest.py ssrftest.py sstiscan.py; do
+        sudo cp "/tools/src/ex-tools/$script" "/usr/bin/${script%.*}"
+        sudo chmod +x "/usr/bin/${script%.*}"
+    done
+else
+    echo " [!] /tools/src/ex-tools/ can't found!"
+fi
 
+
+rm -rf Gf-Patterns
+rm -rf gf-completion.*
 echo " [*] All tools installed!"
-xsrfprobe
