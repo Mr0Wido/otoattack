@@ -273,7 +273,7 @@ def run_detect_tools(target_list, domain):
     try:
         nuclei_results = os.path.join(directory, "nuclei_results.txt")
         print(colorama.Fore.GREEN + f" [*] Running Nuclei scan for Nuclei...")
-        nuclei_command = f"nuclei -l {target_list} -s critical,high,medium,low,info  -no-color -o -o {nuclei_results}"
+        nuclei_command = f"nuclei -l {target_list} -s critical,high,medium,low,info  -no-color -o {nuclei_results}"
         nuclei_out = subprocess.Popen(nuclei_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         output = nuclei_out.communicate()
 
