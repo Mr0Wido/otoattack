@@ -83,11 +83,17 @@ There are three options and they are required.
 -config | | Create the config file
 
 ## Usage
-Provide Servers for XSS and SSTI
+Provide Servers for XSS and SSTI. It's required.
+
+These servers can be Burp Collaborator or you can use these free resources;
+- [XSSHUNTER](https://xsshunter.trufflesecurity.com)
+- [RequestBin](https://pipedream.com)
+
 ```bash
 $ python3 otoattack -config
 ```
 
+Scan
 
 ```bash
 $ python3 otoattack.py -l url.txt -d example.com -scan
