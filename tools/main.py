@@ -22,7 +22,8 @@ from tools.config import config_file
 
 def parser_Arguments():
     parser = argparse.ArgumentParser(description='Vulnrability Scanner')
-    parser.add_argument("-l", "--list", help="Path to the list of targets", type=str)
+    parser.add_argument("-ul", "--list", help="Path to the list of targets", type=str)
+    parser.add_argument("-dl", "--domain_list", help="Path to the list of domains", type=str)
     parser.add_argument("-d", "--domain", help="Domain to scan", type=str)
     parser.add_argument("-scan", help="Scan for the detecting vulns", action="store_true")
     parser.add_argument("-config", help="Path to the config file", action="store_true")
@@ -49,7 +50,7 @@ def main():
     args = parser_Arguments()
     if args.scan:
         run_gf(target_list=args.list)
-        run_detect_tools(target_list=args.list, domain=args.domain)
+        run_detect_tools(target_list=args.list, domain=args.domain, domain_list=args.domain_list)
     if args.config:
         config_file()
     

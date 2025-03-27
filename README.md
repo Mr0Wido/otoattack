@@ -77,10 +77,13 @@ $ ./install.sh
 There are three options and they are required.
 **Flags** |    | Description
 --- | ---  | ---
--l | --list | Path to the list of targets
--d | --domain | Domain to scan
--scan |  | Scan for the detecting vuln
+-ul | --list | Path to the list of targets
+-dl | --domain_list | Path to the list of domains for subdomain takeover
+-d | --domain | Domain to subdomain takeover
+-scan |  | Arg for the starting scan
 -config | | Create the config file
+
+-
 
 ## Usage
 Provide Servers for XSS and SSTI. It's required.
@@ -96,7 +99,7 @@ $ python3 otoattack -config
 Scan
 
 ```bash
-$ python3 otoattack.py -l url.txt -d example.com -scan
+$ python3 otoattack.py -ul url.txt -dl domain.txt -scan
 ```
 
 

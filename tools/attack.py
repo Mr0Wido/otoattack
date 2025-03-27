@@ -4,7 +4,8 @@ from tools.config import load_config
 
 def parser_arguments():
     parser = argparse.ArgumentParser(description="Vulnerability Detection Scanner")
-    parser.add_argument("-l", "--list", help="Path to the list of targets", type=str)
+    parser.add_argument("-ul", "--list", help="Path to the list of targets", type=str)
+    parser.add_argument("-dl", "--domain_list", help="Path to the list of domains", type=str)
     parser.add_argument("-d", "--domain", help="Domain to scan", type=str)
     parser.add_argument("-scan", help="Scan for detecting vulnerabilities", action="store_true")
     args = parser.parse_args()
@@ -13,8 +14,8 @@ def parser_arguments():
         print(colorama.Fore.RED + "Please provide a target list.")
         sys.exit(1)
     
-    if not args.domain:
-        print(colorama.Fore.RED + "Please provide a domain to scan.")
+    if not args.domain and not args.domain_list:
+        print(colorama.Fore.RED + "Please provide a domain or domain list for subdomain takeover.")
         sys.exit(1)
 
     return args
@@ -40,7 +41,7 @@ def run_gf(target_list):
         except subprocess.CalledProcessError as e:
             print(colorama.Fore.RED + f"Error running {tool}: {e.stderr}")
 
-def run_detect_tools(target_list, domain):   
+def run_detect_tools(target_list, domain, domain_list):   
     directory = "scan-results"
     config = load_config()
     xss_server = config.get("XSS_SERVER")
@@ -219,9 +220,10 @@ def run_detect_tools(target_list, domain):
         cors_out = subprocess.Popen(cors_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         output = cors_out.communicate()
 
-        cors_command_2 = f"cors -ul {target_list} -d {domain} | tee -a {cors_results}"
+        cors_command_2 = f"cors -ul {target_list} | tee -a {cors_results}"
         cors_command_2_out = subprocess.Popen(cors_command_2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         output = cors_command_2_out.communicate()
+
         html_output(directory, cors_results, "CORS Scan", "cors_scan")
 
     except subprocess.CalledProcessError as e:
@@ -256,16 +258,24 @@ def run_detect_tools(target_list, domain):
     try:
         subdomain_results = os.path.join(directory, "subdomain_results.txt")
         print(colorama.Fore.GREEN + f" [*] Running Subdomain Takeover scan for Subdomain Takeover...")
-        subdomain_command = fsub_command= f"subfinder -d {domain} -silent | anew subdomain.txt && assetfinder -subs-only {domain} | anew subdomain.txt && findomain -t {domain} -q | anew subdomain.txt && cero {domain} | anew subdomain.txt"
-        subdomain_out = subprocess.Popen(subdomain_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-        output = subdomain_out.communicate()
+        
+        if domain_list:
+            takeover_command = f"subzy r --hide_fails --targets {domain_list} | tee {subdomain_results}"
+            takeover_out = subprocess.Popen(takeover_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            output = takeover_out.communicate()
 
-        takeover_command = f"subzy r --hide_fails --targets subdomain.txt | tee {subdomain_results}"
-        takeover_out = subprocess.Popen(takeover_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-        output = takeover_out.communicate()
+        elif domain: 
+            subdomain_command = f"subfinder -d {domain} -silent | anew subdomain.txt && assetfinder -subs-only {domain} | anew subdomain.txt && findomain -t {domain} -q | anew subdomain.txt && cero {domain} | anew subdomain.txt"
+            subdomain_out = subprocess.Popen(subdomain_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            output = subdomain_out.communicate()
 
+            takeover_command = f"subzy r --hide_fails --targets subdomain.txt | tee {subdomain_results}"
+            takeover_out = subprocess.Popen(takeover_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            output = takeover_out.communicate()
+            subprocess.run("rm -rf subdomain.txt", shell=True, check=True)
+    
         html_output(directory, subdomain_results, "Subdomain Takeover Scan", "subdomain_scan")
-        subprocess.run("rm -rf subdomain.txt", shell=True, check=True)
+        
     except subprocess.CalledProcessError as e:
         print(colorama.Fore.RED + f"Error running Subdomain Takeover: {e.stderr}")
 
@@ -285,9 +295,10 @@ if __name__ == "__main__":
     args = parser_arguments()
     target_list = args.list
     domain = args.domain
+    domain_list = args.domain_list
 
     if args.scan:
         print(colorama.Fore.GREEN + " [*] Starting GF Scan.....")
         run_gf(target_list)
         print(colorama.Fore.GREEN + " [*] Starting Detecting Tools.....")
-        run_detect_tools(target_list)
+        run_detect_tools(target_list, domain, domain_list)
