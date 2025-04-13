@@ -46,11 +46,11 @@ def inject_ssti(url):
                 try:
                     response = requests.get(payload_url, headers=headers, timeout=10)
                     if payload["expected_output"] in response.text:
-                        print(f"[+] Potential SSTI detected: {payload['payload']} : {payload_url}")
+                        print(f"[SSTI] {payload_url}")
                         with open("ssti_found.txt", "a") as f:
                             f.write(f"{payload_url} | Expected Output: {payload['expected_output']}\n")
                     else:
-                        print(f"[-] No SSTI: {payload_url}")
+                        continue
 
                 except requests.exceptions.RequestException as e:
                     print(f"[!] Error on {url}: {e}")
@@ -65,7 +65,7 @@ def main():
         return
 
     with open ("ssti_found.txt", "w") as f:
-        f.write("----Founded SSTI----")
+        f.write("\n----Founded SSTI----\n")
     for url in urls:
         inject_ssti(url)
 

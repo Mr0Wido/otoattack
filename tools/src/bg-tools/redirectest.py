@@ -5,14 +5,40 @@ import aiohttp
 import argparse
 import sys
 import socket
-from aiohttp import ClientConnectorError, ClientOSError, ServerDisconnectedError, ServerTimeoutError, ServerConnectionError, TooManyRedirects
-
-import concurrent.futures
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
-from typing import List
+from typing import List, Optional, AsyncIterator
+import logging
+from dataclasses import dataclass
+from termcolor import colored
 
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    handlers=[logging.StreamHandler(sys.stderr)]
+)
+logger = logging.getLogger('openredirex')
 
-redirect_payloads = [
+# Error types to catch
+HTTP_ERRORS = (
+    aiohttp.ClientConnectorError,
+    aiohttp.ClientOSError,
+    aiohttp.ServerDisconnectedError,
+    aiohttp.ServerTimeoutError,
+    aiohttp.ServerConnectionError,
+    aiohttp.TooManyRedirects,
+    UnicodeDecodeError,
+    socket.gaierror,
+    asyncio.TimeoutError
+)
+
+@dataclass
+class ScanResult:
+    url: str
+    payload: str
+    redirect_chain: List[str]
+
+DEFAULT_PAYLOADS = [
 "//example.com@google.com/%2f..",
 "///google.com/%2f..",
 "///example.com@google.com/%2f..",
@@ -59,85 +85,186 @@ redirect_payloads = [
 "////example.com/"
 ]
 
-async def load_payloads(payloads_file):
+class URLProcessor:
+    @staticmethod
+    def fuzzify_url(url: str, keyword: str) -> str:
+        """Replace all parameter values in URL with the keyword."""
+        if keyword in url:
+            return url
+
+        parsed = urlparse(url)
+        params = parse_qsl(parsed.query)
+        fuzzed_params = [(k, keyword) for k, _ in params]
+        fuzzed_query = urlencode(fuzzed_params)
+
+        return urlunparse([
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            fuzzed_query,
+            parsed.fragment
+        ])
+
+    @staticmethod
+    def load_urls() -> List[str]:
+        """Read and process URLs from stdin."""
+        return [
+            URLProcessor.fuzzify_url(line.strip(), "FUZZ")
+            for line in sys.stdin if line.strip()
+        ]
+
+async def load_payloads(payloads_file: Optional[str]) -> List[str]:
+    """Load payloads from file or use defaults."""
     if payloads_file:
-        with open(payloads_file) as f:
-            return [line.strip() for line in f]
-    else:
-        return redirect_payloads  # Return hardcoded list if no file specified
+        try:
+            with open(payloads_file) as f:
+                return [line.strip() for line in f if line.strip()]
+        except IOError as e:
+            logger.error(f"Failed to load payloads file: {e}")
+            return DEFAULT_PAYLOADS
+    return DEFAULT_PAYLOADS
 
-
-def fuzzify_url(url: str, keyword: str) -> str:
-    # If the keyword is already in the url, return the url as is.
-    if keyword in url:
-        return url
-
-    # Otherwise, replace all parameter values with the keyword.
-    parsed_url = urlparse(url)
-    params = parse_qsl(parsed_url.query)
-    fuzzed_params = [(k, keyword) for k, _ in params]
-    fuzzed_query = urlencode(fuzzed_params)
-
-    # Construct the fuzzified url.
-    fuzzed_url = urlunparse(
-        [parsed_url.scheme, parsed_url.netloc, parsed_url.path, parsed_url.params, fuzzed_query, parsed_url.fragment])
-
-    return fuzzed_url
-
-
-def load_urls() -> List[str]:
-    urls = []
-    for line in sys.stdin:
-        url = line.strip()
-        fuzzed_url = fuzzify_url(url, "FUZZ")
-        urls.append(fuzzed_url)
-    return urls
-
-
-
-async def fetch_url(session, url):
+async def fetch_url(session: aiohttp.ClientSession, url: str) -> Optional[aiohttp.ClientResponse]:
+    """Fetch URL with error handling."""
     try:
-        async with session.head(url, allow_redirects=True, timeout=10) as response:
+        async with session.head(
+            url,
+            allow_redirects=True,
+            timeout=aiohttp.ClientTimeout(total=10),
+            raise_for_status=False
+        ) as response:
             return response
-    except (ClientConnectorError, ClientOSError, ServerDisconnectedError, ServerTimeoutError, ServerConnectionError, TooManyRedirects, UnicodeDecodeError, socket.gaierror, asyncio.exceptions.TimeoutError):
-        print(f'[ERROR] Error fetching: {url}', file=sys.stderr)
+    except HTTP_ERRORS as e:
+        logger.debug(f"Error fetching {url}: {type(e).__name__}")
         return None
 
-async def process_url(semaphore, session, url, payloads, keyword):
+async def process_url(
+    semaphore: asyncio.Semaphore,
+    session: aiohttp.ClientSession,
+    url: str,
+    payload: str,
+    keyword: str
+) -> Optional[ScanResult]:
+    """Process a single URL with a single payload."""
     async with semaphore:
-        for payload in payloads:
-            filled_url = url.replace(keyword, payload)
-            response = await fetch_url(session, filled_url)
-            if response and response.history:
-                locations = " --> ".join(str(r.url) for r in response.history)
-                # If the string contains "-->", print in green
-                if "-->" in locations:
-                    print(f'[FOUND] {filled_url} redirects to {locations}')
-                else:
-                    print(f'[INFO] {filled_url} redirects to {locations}')
+        target_url = url.replace(keyword, payload)
+        response = await fetch_url(session, target_url)
+        
+        if response and response.history:
+            return ScanResult(
+                url=target_url,
+                payload=payload,
+                redirect_chain=[str(r.url) for r in response.history] + [str(response.url)]
+            )
+        return None
 
-async def process_urls(semaphore, session, urls, payloads, keyword):
-        tasks = []
-        for url in urls:
-            tasks.append(process_url(semaphore, session, url, payloads, keyword))
-        await asyncio.gather(*tasks, return_exceptions=True)
+async def result_printer(results: AsyncIterator[ScanResult]) -> None:
+    """Print results with colored output."""
+    async for result in results:
+        if len(result.redirect_chain) > 1:
+            chain = " → ".join(result.redirect_chain)
+            msg = f"OPEN REDIRECT: {result.url} → {chain}"
+            print(colored(msg, 'green'))
+        else:
+            logger.info(f"Redirect: {result.url} → {result.redirect_chain[0]}")
 
-async def main(args):
+async def worker(
+    session: aiohttp.ClientSession,
+    url_queue: asyncio.Queue,
+    result_queue: asyncio.Queue,
+    payloads: List[str],
+    keyword: str,
+    semaphore: asyncio.Semaphore
+) -> None:
+    """Worker to process URLs from the queue."""
+    while True:
+        url = await url_queue.get()
+        try:
+            for payload in payloads:
+                result = await process_url(semaphore, session, url, payload, keyword)
+                if result:
+                    await result_queue.put(result)
+        finally:
+            url_queue.task_done()
+
+async def main(args: argparse.Namespace) -> None:
+    """Main scanning function."""
     payloads = await load_payloads(args.payloads)
-    urls = load_urls()
-    print(f'[INFO] Processing {len(urls)} URLs with {len(payloads)} payloads.')
-    async with aiohttp.ClientSession() as session:
+    urls = URLProcessor.load_urls()
+    
+    logger.info(f"Starting scan with {len(urls)} URLs and {len(payloads)} payloads")
+    
+    url_queue = asyncio.Queue()
+    result_queue = asyncio.Queue()
+    
+    # Fill the URL queue
+    for url in urls:
+        await url_queue.put(url)
+    
+    # Create worker tasks
+    async with aiohttp.ClientSession(
+        connector=aiohttp.TCPConnector(limit=args.concurrency),
+        headers={'User-Agent': 'OpenRedireX/1.0'}
+    ) as session:
         semaphore = asyncio.Semaphore(args.concurrency)
-        await process_urls(semaphore, session, urls, payloads, args.keyword)
+        
+        workers = [
+            asyncio.create_task(worker(session, url_queue, result_queue, payloads, args.keyword, semaphore))
+            for _ in range(args.concurrency)
+        ]
+        
+        # Start result printer
+        printer = asyncio.create_task(result_printer(result_queue))
+        
+        # Wait for all URLs to be processed
+        await url_queue.join()
+        
+        # Cancel workers
+        for task in workers:
+            task.cancel()
+        
+        # Wait for printer to finish
+        await result_queue.join()
+        printer.cancel()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="OpenRedireX : A fuzzer for detecting open redirect vulnerabilities")
-    parser.add_argument('-p', '--payloads', help='file of payloads', required=False)
-    parser.add_argument('-k', '--keyword', help='keyword in urls to replace with payload (default is FUZZ)', default="FUZZ")
-    parser.add_argument('-c', '--concurrency', help='number of concurrent tasks (default is 100)', type=int, default=100)
+    parser = argparse.ArgumentParser(
+        description="OpenRedireX: Advanced Open Redirect Vulnerability Scanner",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        '-p', '--payloads',
+        help='File containing custom payloads',
+        required=False
+    )
+    parser.add_argument(
+        '-k', '--keyword',
+        help='Keyword in URLs to replace with payloads',
+        default="FUZZ"
+    )
+    parser.add_argument(
+        '-c', '--concurrency',
+        help='Number of concurrent requests',
+        type=int,
+        default=100
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        help='Enable verbose logging',
+        action='store_true'
+    )
+    
     args = parser.parse_args()
+    
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    
     try:
         asyncio.run(main(args))
     except KeyboardInterrupt:
-        print("\nInterrupted by user. Exiting...")
+        logger.info("Scan interrupted by user")
         sys.exit(0)
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        sys.exit(1)

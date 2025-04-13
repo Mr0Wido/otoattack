@@ -70,7 +70,7 @@ def run_detect_tools(target_list, domain, domain_list):
 
 
         blind_daltox_temp_file = "blind_dalfox_temp.txt"
-        dalfox_command_2= f"cat {target_list} grep 'https://' | grep -v 'png|jpg|css|js|gif|txt' | grep '=' | qsreplace -a | dalfox pipe -b {xss_server} --no-color | tee -a {blind_daltox_temp_file}"
+        dalfox_command_2= f"cat {target_list} | grep 'https://' | grep -v 'png|jpg|css|js|gif|txt' | grep '=' | qsreplace -a | dalfox pipe -b {xss_server} --no-color | tee -a {blind_daltox_temp_file}"
         dalfox_out_2 = subprocess.Popen(dalfox_command_2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
         output_2 = dalfox_out_2.communicate()
 
@@ -204,9 +204,9 @@ def run_detect_tools(target_list, domain, domain_list):
     try:
         header_results = os.path.join(directory, "header_results.txt")
         print(colorama.Fore.GREEN + f" [*] Running Header Injection scan for Header Injection...")
-        lfi_command = f"for URL in $(<{target_list}); do (headi -url \"${{URL}}\" | tee {header_results}); done"
-        lfi_out = subprocess.Popen(lfi_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
-        stdout, stderr = lfi_out.communicate()
+        headi_command = f"for URL in $(<{target_list}); do (headi -url \"${{URL}}\" | tee {header_results}); done"
+        headi_out = subprocess.Popen(headi_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
+        stdout, stderr = headi_out.communicate()
                 
         html_output(directory, header_results, "Header Injection Scan", "header_scan")
     except subprocess.CalledProcessError as e:
